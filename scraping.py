@@ -2,7 +2,7 @@ import feedparser
 import json
 from tqdm import tqdm
 import gradio as gr
-from datetime import datetime
+from datetime import datetime, timezone
 all_urls = {
     'BBC World Asia': 'https://feeds.bbci.co.uk/news/world/asia/rss.xml',
     'BBC World Africa': 'https://feeds.bbci.co.uk/news/world/africa/rss.xml',
@@ -52,12 +52,16 @@ def fetch_feeds_and_export_to_jsonl(selected_feeds, output_file=output_file, pro
                     'date': entry.published if 'published' in entry else 'No date available',
                     'link': entry.link,
                     'summary': entry.summary if 'summary' in entry else 'No summary available',
-                    'author': entry.author if 'author' in entry else 'No author available'
+                    'author': entry.author if 'author' in entry else 'No author available',
+                    'bullet_points':'Unavailable',
+                    'detailed_analysis': 'Unavailable',
+                    'label': 'Unavaiable',
+                    'score': 'Unavailable'
                 }
                 # Convertir le dictionnaire en JSON et écrire dans le fichier avec un saut de ligne
                 file.write(json.dumps(data) + '\n')
      # Préparer la sortie pour la dernière mise à jour et les flux choisis
-    last_update_info = 'Last update: ' + str(datetime.now().strftime("%Y-%m-%d %H:%M")) + '\nFeeds updated:\n'
+    last_update_info = 'Last update: ' + str(datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")) + 'Z' + '\nFeeds updated:\n'
     feeds_updated = '\n'.join(selected_feeds)  # Joindre les noms des flux dans une seule chaîne
 
     # Écrire la dernière mise à jour et les flux choisis dans le fichier last_update.txt

@@ -23,7 +23,7 @@ def classify(theme, input_file='articles.jsonl', progress=gr.Progress()):
             output = zeroshot_classifier(text, classes_verbalized, hypothesis_template=hypothesis_template, multi_label=False)
             # Ajout du thème et du score au label
             score = output['scores'][0] if output['scores'] else 0  # Sécurité en cas de réponse vide
-            obj['label'] = f"{theme} {score:.2f}"
+            obj['label'] = f"{theme}"
             obj['score'] = score  # Stocker le score séparément pour le tri
             updated_objects.append(obj)
     
@@ -31,7 +31,7 @@ def classify(theme, input_file='articles.jsonl', progress=gr.Progress()):
     updated_objects.sort(key=lambda x: x['score'], reverse=True)
 
     # Écriture des objets mis à jour dans un nouveau fichier JSONL, triés par score
-    output_file = 'sorted.jsonl'
+    output_file = 'articles.jsonl'
     with open(output_file, 'w') as f:
         for obj in updated_objects:
             json.dump(obj, f)

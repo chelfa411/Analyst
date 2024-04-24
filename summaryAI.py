@@ -48,12 +48,14 @@ def ensure_formatting(summary_text):
 
 def generate_bullet_points(article_text, model, tokenizer, device):
     messages = [
-        {"role": "user", "content": """Please read the following article and provide a summary in the form of bullet points using asterisks to highlight each point. Highlight the key information and main ideas.\nUse this format:\n
+        {"role": "user", "content": """Please read the following article and provide a concise summary in the form of bullet points. Highlight the key information and main ideas.\nUse this format:\n
          - Element 1\n
          - Element 2\n
          - Element 3\n
-         - Element n\n"""},
-        {"role": "assistant", "content": "Sure, I'll summarize the article with bullet points using '-' :"},
+         - Element n\n
+         
+         Be very concise by keeping only essential informations. Stick to the format previously given."""},
+        {"role": "assistant", "content": "Sure, I'll summarize the article with concise bullet points using '-' :"},
         {"role": "user", "content": article_text}
     ]
 
@@ -81,28 +83,35 @@ def generate_bullet_points(article_text, model, tokenizer, device):
 
 # Exemple d'utilisation
 input_filename = 'articles.jsonl'
-output_filename = 'summary.jsonl'
+output_filename = 'articles.jsonl'
 
-def process_articles(sorted=False, max_element=10, input_file=input_filename, output_file=output_filename, progress=gr.Progress()):
-    if sorted:
-        input_file = 'sorted.jsonl'
+def process_articles(sorted=False, max_element=10, input_file='articles.jsonl', output_file='articles.jsonl', progress=gr.Progress()):
     model, tokenizer, device = init_model()
-    with open(input_file, 'r', encoding='utf-8') as file:
-        lines = file.readlines()
+    updated_articles = []
 
-    if sorted:
-        lines = lines[:max_element]
+    # Lecture de tous les articles à partir du fichier
+    with open(input_file, 'r', encoding='utf-8') as file:
+        articles = [json.loads(line) for line in file.readlines()]
+
+    # Traitement des articles pour ajouter les bullet points
+    for article in progress.tqdm(articles[:max_element] if sorted else articles, desc="Summarizing Articles"):
+        article_text = article.get('content', '')
+        if article_text:
+            bullet_points = generate_bullet_points(article_text, model, tokenizer, device)
+            article['bullet_points'] = bullet_points
+            print(bullet_points)
+        updated_articles.append(article)
+
+    # Écriture de tous les articles modifiés dans le fichier
     with open(output_file, 'w', encoding='utf-8') as outfile:
-        for line in progress.tqdm(lines, desc="Summarizing Articles"):
-            article_obj = json.loads(line)
-            article_text = article_obj.get('content', '')
-            if article_text != '':
-                bullet_points = generate_bullet_points(article_text, model, tokenizer, device)
-                article_obj['bullet_points'] = bullet_points
-            json.dump(article_obj, outfile)
+        for article in updated_articles:
+            json.dump(article, outfile)
             outfile.write('\n')
+
     with open('sum_status.txt','w') as f:
         f.write('Last update: ' + str(datetime.now().strftime("%Y-%m-%d %H:%M")))
+
+
 
 
 def process_article(article_text):

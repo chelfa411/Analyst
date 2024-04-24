@@ -4,7 +4,7 @@ import torch
 from tqdm import tqdm
 import os
 import gradio as gr
-from pdfGenerator import article_to_pdf, convert_jsonl_to_pdf
+from pdfGenerator import article_to_pdf, convert_jsonl_to_pdf, article_to_pdf_target
 
 def generate_detailed_analysis(model, tokenizer, device, bullet_points_text):
     prompt = """
@@ -100,8 +100,8 @@ def generate_detailed_analysis(model, tokenizer, device, bullet_points_text):
 
     return detailed_analysis
 
-input_filename = 'summary.jsonl'
-output_filename = 'analysis.jsonl'
+input_filename = 'articles.jsonl'
+output_filename = 'articles.jsonl'
 def process_json(t_number, demo, input_file=input_filename, output_file=output_filename, progress=gr.Progress()):
     os.environ['CUDA_VISIBLE_DEVICES'] = '2,3'
 
@@ -114,19 +114,20 @@ def process_json(t_number, demo, input_file=input_filename, output_file=output_f
 
     with open(input_file, 'r', encoding='utf-8') as file:
         articles = [json.loads(line) for line in file]
-        articles = articles[:t_number]
 
     results = []
     response = ""
-    for article in progress.tqdm(articles, desc="Analyzing Articles"):
+    for article in progress.tqdm(articles[:t_number], desc="Analyzing Articles"):
         bullet_points = article.get('bullet_points', '')
         analysis = generate_detailed_analysis(model, tokenizer, device, bullet_points)
         article['detailed_analysis'] = analysis
-        fp = '/tmp/gradio/pdf_outputs'+f"/detailed_analysis_{article.get('title')}.pdf"
+        title_cleaned = ((article.get('title').replace('/', '_')).replace(' ', '-')).replace("'", "_")
+        fp = f"/tmp/gradio/pdf_outputs/detailed_analysis_{title_cleaned}.pdf"
         article['report_path'] = fp
-        response += f"<p><a href='{demo.share_url}/file={fp}' target='_blank' style='color: #007BFF; text-decoration: none;'>View Report</a></p>"
+        response += f"<p><a href='{demo.share_url}/file={fp}' target='_blank' style='color: #007BFF; text-decoration: none;'>View Report: {title_cleaned}</a></p>"
         results.append(article)
-
+    for article in articles[t_number:]:
+        results.append(article)
     with open(output_file, 'w', encoding='utf-8') as outfile:
         for result in results:
             json.dump(result, outfile)
@@ -151,4 +152,53 @@ def analyse(article,demo):
     article_to_pdf(generate_detailed_analysis(model, tokenizer, device, article))
 
     return f"<p><a href='{demo.share_url}/file=/tmp/gradio/pdf_outputs/detailed_analysis_local.pdf' target='_blank' style='color: #007BFF; text-decoration: none;'>View Report</a></p>"
+
+
+
+from fuzzywuzzy import fuzz
+import json
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
+def find_object_by_title_and_analyse(demo, title, jsonl_file='articles.jsonl'):
+    articles = []
+    found = False
+    best_match_score = 70  # Définir un seuil de correspondance, par exemple 70%
+    best_match = None
+    fp = None  # Initialisation de fp pour éviter des erreurs si non défini
+
+    with open(jsonl_file, 'r', encoding='utf-8') as file:
+        articles = [json.loads(line) for line in file]
+
+    print(f"Debug: Starting search for title '{title}'.")
+    for data in articles:
+        # Utilisation de fuzz.partial_ratio pour comparer les titres de manière insensible à la casse
+        match_score = fuzz.partial_ratio(title.lower(), data.get('title', '').lower())
+        if match_score > best_match_score:
+            best_match_score = match_score
+            best_match = data
+    if best_match:
+        found = True
+        print(f"Debug: Best match confirmed: {best_match.get('title')}")
+        bullet_points = best_match.get('bullet_points')
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model = AutoModelForCausalLM.from_pretrained("mistralai/Mistral-7B-Instruct-v0.2").to(device)
+        tokenizer = AutoTokenizer.from_pretrained("mistralai/Mistral-7B-Instruct-v0.2")
+        analysis = generate_detailed_analysis(model, tokenizer, device, bullet_points)
+        best_match['detailed_analysis'] = analysis
+        title_cleaned = ((best_match.get('title').replace('/', '_')).replace(' ', '-')).replace("'", "_")
+        fp = f"/tmp/gradio/pdf_outputs/detailed_analysis_{title_cleaned}.pdf"
+        best_match['report_path'] = fp
+        article_to_pdf_target(best_match, analysis)
+
+    if found:
+        with open(jsonl_file, 'w', encoding='utf-8') as outfile:
+            for article in articles:
+                json.dump(article, outfile)
+                outfile.write('\n')
+        return f"<a href='{demo.share_url}/file={fp}' target='_blank' style='color: #007BFF; text-decoration: none;'>View Report</a>"
+    else:
+        print("Debug: No matching articles found.")
+        return "Article not found"
+
 
