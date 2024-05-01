@@ -49,8 +49,9 @@ async def process_jsonl_file(input_file, output_file):
         url = data['link']
         if 'guardian' in url:
             text_content = await fetch_text_from_url(url)
-            data['content'] = text_content
-            results.append(json.dumps(data))
+            if text_content != '':
+                data['content'] = text_content
+                results.append(json.dumps(data))
             cpt+=1 
             print(cpt)
 

@@ -3,7 +3,7 @@ import time
 from scraping import fetch_feeds_and_export_to_jsonl, all_urls
 import subprocess
 from datetime import datetime, timezone
-from test import process_articles, process_article, find_object_by_title_and_summarize
+from summary2 import process_articles, process_article, find_object_by_title_and_summarize
 from classify import classify
 from analyseAI import process_json, analyse, find_object_by_title_and_analyse
 from pdfGenerator import convert_jsonl_to_pdf
@@ -123,35 +123,38 @@ This application allows you to effectively manage and analyze news content from 
             with gr.Row():
                 sum_status = gr.Textbox(label='Summarization status', show_label=True, value=get_sum_update())
                 box_sort = gr.Checkbox(label="summarize all the articles", show_label=True)
+                box_bullet = gr.Checkbox(label="Bullet point format", show_label=True)
                 slide_sort = gr.Slider(minimum=1, maximum=50, step=1, value=10, label="Number of articles to summarize")
+                preset_selector = gr.Dropdown(choices=["Basic", "Short", "Medium", "Long", "Complete"], label="Select Detail Level", value="Basic")
                 get_sum = gr.Button(value='Summarize articles')
-            get_sum.click(fn=process_articles, inputs=[box_sort, slide_sort], outputs=sum_status, concurrency_limit=1)
+            get_sum.click(fn=process_articles, inputs=[preset_selector, box_bullet, box_sort, slide_sort], outputs=sum_status, concurrency_limit=1)
             with gr.Row():
                 article_title = gr.Textbox(label="Enter the title of the article for summarizing",show_label=True)
                 art_but = gr.Button(value="launch summarizing")
-            art_but.click(fn=find_object_by_title_and_summarize, inputs=article_title, outputs=article_title)
+            art_but.click(fn=find_object_by_title_and_summarize, inputs=[article_title, preset_selector, box_bullet], outputs=article_title)
             with gr.Column():
                 text_entry = gr.Textbox(label='Enter the text of the article to summarize', show_label=True, max_lines=5, lines=5)
                 sum = gr.Button(value='Summarize the article')
                 sum_out = gr.Markdown()
-            sum.click(fn=process_article,inputs=[text_entry], outputs=sum_out, concurrency_limit=1)
+            sum.click(fn=process_article,inputs=[text_entry, preset_selector, box_bullet], outputs=sum_out, concurrency_limit=1)
 
     with gr.Tab("Analysis"):
         with gr.Row():
             ana_stat = gr.HTML()
+            use_google = gr.Checkbox(label="Use websearch to feed accurate data to the AI", show_label=True)
             ana_slider = gr.Slider(minimum=1, maximum=10, step=1, value=3, label="Number of articles to analyze (prior classification required)")
             ana_but = gr.Button(value="Launch articles analysis")
-        ana_but.click(fn=lambda slide: process_json(slide,demo), inputs=[ana_slider], outputs=ana_stat, concurrency_limit=1)
+        ana_but.click(fn=lambda slide, search: process_json(slide,demo,search), inputs=[ana_slider, use_google], outputs=ana_stat, concurrency_limit=1)
         with gr.Row():
             art_ana_stat = gr.HTML()
             art_text = gr.Textbox(label="Enter the title of the article to analyse", show_label=True)
             art_ana_but = gr.Button(value="Launch article analysis")
-        art_ana_but.click(fn=lambda title: find_object_by_title_and_analyse(demo,title), inputs=art_text, outputs=art_ana_stat)
+        art_ana_but.click(fn=lambda title, search: find_object_by_title_and_analyse(demo,title, search), inputs=[art_text, use_google], outputs=art_ana_stat)
         with gr.Column():
             text_ana = gr.Textbox(label='Enter the text of the article to analyze', show_label=True, max_lines=6, lines=6)
             link_report = gr.HTML()
             but_ana = gr.Button(value='Launch article analysis')
-        but_ana.click(fn=lambda text: analyse(text,demo), inputs=[text_ana], outputs=link_report, concurrency_limit=1)
+        but_ana.click(fn=lambda text, search: analyse(text,demo, search), inputs=[text_ana, use_google], outputs=link_report, concurrency_limit=1)
     with gr.Tab("Read articles'data"):
         create_search_article_interface(demo)
 

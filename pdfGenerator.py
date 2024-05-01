@@ -36,12 +36,11 @@ def convert_jsonl_to_pdf(input_jsonl=input_jsonl, output_folder=output_folder):
                     response += f"<h2>Analysis:</h2>{analysis_html}"
                 response += "</div>"
 
-                title_cleaned = title.replace('/', '_').replace(' ', '-').replace("'", "_")
+                title_cleaned = title.replace('/', '_').replace(' ', '-').replace("'", "_").replace("|","pipe").replace("?","q")
                 output_pdf = f"{output_folder}/detailed_analysis_{title_cleaned}.pdf"
                 
                 # Conversion en PDF
                 HTML(string=response).write_pdf(output_pdf)
-                print(f"PDF generated: {output_pdf}")
 
 def article_to_pdf(text, output_folder=output_folder):
     response = f"""
@@ -63,7 +62,7 @@ def article_to_pdf_target(article, text, output_folder=output_folder):
     response += f"<h2>Analysis:</h2>{analysis_html}"
     response += "</div>"
     title = article.get('title', 'No Title Provided')
-    title_cleaned = title.replace('/', '_').replace(' ', '-').replace("'", "_")
+    title_cleaned = title.replace('/', '_').replace(' ', '-').replace("'", "_").replace("|","pipe").replace("?","q")
     output_pdf = f"{output_folder}/detailed_analysis_{title_cleaned}.pdf"
     HTML(string=response).write_pdf(output_pdf)
 
