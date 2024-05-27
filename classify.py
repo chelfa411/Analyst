@@ -37,5 +37,8 @@ def classify(theme, input_file='articles.jsonl', progress=gr.Progress()):
             json.dump(obj, f)
             f.write('\n')  # Écrit chaque objet JSON sur une nouvelle ligne
 
+    with open('theme.txt','w') as f:
+        f.write(theme)
+
     return theme
 

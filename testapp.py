@@ -5,9 +5,21 @@ import subprocess
 from datetime import datetime, timezone
 from summary2 import process_articles, process_article, find_object_by_title_and_summarize
 from classify import classify
-from analyseAI import process_json, analyse, find_object_by_title_and_analyse
+from analyseAI import process_json, analyse, find_object_by_title_and_analyse, global_report
 from pdfGenerator import convert_jsonl_to_pdf
 from gradioserver import create_search_article_interface
+from rag import setup_chat_bot
+
+
+
+
+
+
+
+
+
+
+
 def get_sum_update():
     with open('sum_status.txt','r') as f:
         return f.read().strip()
@@ -141,22 +153,30 @@ This application allows you to effectively manage and analyze news content from 
     with gr.Tab("Analysis"):
         with gr.Row():
             ana_stat = gr.HTML()
+        with gr.Row():
+
             use_google = gr.Checkbox(label="Use websearch to feed accurate data to the AI", show_label=True)
+            ana_model = gr.Radio(["Meta-Llama-3-8B-Instruct", "Mistral-7B-Instruct-v0.2"], label="Select Model", value="Meta-Llama-3-8B-Instruct")
             ana_slider = gr.Slider(minimum=1, maximum=10, step=1, value=3, label="Number of articles to analyze (prior classification required)")
             ana_but = gr.Button(value="Launch articles analysis")
-        ana_but.click(fn=lambda slide, search: process_json(slide,demo,search), inputs=[ana_slider, use_google], outputs=ana_stat, concurrency_limit=1)
+        ana_but.click(fn=lambda slide, model_name,search: process_json(slide,demo,model_name,search), inputs=[ana_slider, ana_model,use_google], outputs=ana_stat, concurrency_limit=1)
         with gr.Row():
-            art_ana_stat = gr.HTML()
             art_text = gr.Textbox(label="Enter the title of the article to analyse", show_label=True)
             art_ana_but = gr.Button(value="Launch article analysis")
-        art_ana_but.click(fn=lambda title, search: find_object_by_title_and_analyse(demo,title, search), inputs=[art_text, use_google], outputs=art_ana_stat)
+        art_ana_but.click(fn=lambda title, model_name,search: find_object_by_title_and_analyse(demo,title, model_name, search), inputs=[art_text, ana_model,use_google], outputs=ana_stat)
         with gr.Column():
             text_ana = gr.Textbox(label='Enter the text of the article to analyze', show_label=True, max_lines=6, lines=6)
-            link_report = gr.HTML()
             but_ana = gr.Button(value='Launch article analysis')
-        but_ana.click(fn=lambda text, search: analyse(text,demo, search), inputs=[text_ana, use_google], outputs=link_report, concurrency_limit=1)
+        but_ana.click(fn=lambda text, model_name,search: analyse(text,demo, model_name, search), inputs=[text_ana, ana_model,use_google], outputs=ana_stat, concurrency_limit=1)
+        with gr.Row():
+            indi = gr.Checkbox(label='Generate individual reports by article', show_label=True)
+            num_score = gr.Number(label="Minimum score to be considered in the global report",value=0.70, minimum=0, maximum=1, step=0.01)
+            lau_global = gr.Button('Launch global report')
+        lau_global.click(fn= lambda model_name, score, use_search, individual: global_report(demo, model_name, score, use_search, individual), inputs=[ana_model, num_score, use_google, indi], outputs=ana_stat, concurrency_limit=1)
     with gr.Tab("Read articles'data"):
         create_search_article_interface(demo)
+    with gr.Tab("AI assistant"):
+        setup_chat_bot()
 
 auth = [("Tester1","sadijojqe54572@$#"), ("Tester2","sakdnpowejprhnjdsdf78$@@")]
 demo.launch(share=True)

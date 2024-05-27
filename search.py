@@ -8,6 +8,7 @@ from sentence_transformers import SentenceTransformer, util
 from summary2 import process_article_list
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from searchrequestgenerator import generate_gg_queries
+from clean_text import remove_unnecessary_spaces
 class GoogleSearch:
     def __init__(self, query: str) -> None:
         self.query = query
@@ -116,7 +117,7 @@ def make_researches(query_list):
         document_processor = Document(gs.all_page_data, min_char_len=512)
         doc_chunks, urls = document_processor.doc()
         searcher = SemanticSearch((doc_chunks, urls), model_path="sentence-transformers/all-mpnet-base-v2", device="cuda")
-        results = [(t[0]+"\nSource: "+t[1]) for t in searcher.semantic_search(query, k=16)]
+        results = [(t[0]+"\n"+"\nSource: "+t[1]+"\n") for t in searcher.semantic_search(query, k=10)]
         list_of_researches.append(results)
     return list_of_researches
 
@@ -126,7 +127,8 @@ def make_researches_from_article(article):
     outlist = make_researches(query_list)
     answer_1 = []
     for list in outlist:
-        answer_1 += list
+        elem = remove_unnecessary_spaces(list[0])
+        answer_1.append(elem)
     return answer_1 #process_article_list(answer_1) 
 
 
